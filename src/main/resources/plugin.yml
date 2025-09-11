@@ -1,0 +1,4 @@
+name: Minigames
+version: '1.0-SNAPSHOT'
+main: dittonut.minigames.Main
+api-version: '1.21.8'
