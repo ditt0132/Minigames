@@ -11,7 +11,8 @@ lateinit var config: Config
 @Serializable
 data class Config(
     val version: Int = 1,
-    val kkutuDbUrl: String = ""
+    val kkutuDbUrl: String = "",
+    val inviteExpire: Long = 60
     )
 
 object ConfigManager {

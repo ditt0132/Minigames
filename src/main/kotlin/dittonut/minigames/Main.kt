@@ -26,7 +26,7 @@ class Main : JavaPlugin() {
         ConfigManager.load()
         server.scheduler.runTaskTimer(this, Runnable {
             ConfigManager.save()
-        }, 0L, 600L) // 600틱 = 30초
+        }, 0L, 600L) // 600t = 30s
 
         val commandManager = PaperCommandManager.builder()
             .executionCoordinator(ExecutionCoordinator.simpleCoordinator())
@@ -39,10 +39,15 @@ class Main : JavaPlugin() {
 
         // Minigame init - Kkutu
         KkutuDbManager.init()
+
+        // Invite expire logic
+        server.scheduler.runTaskTimer(this, InviteManager::tick, 0L, 20L) // 20t = 1s
     }
 
     override fun onDisable() {
         // Plugin shutdown logic
         ConfigManager.save()
+
+        KkutuDbManager.close()
     }
 }

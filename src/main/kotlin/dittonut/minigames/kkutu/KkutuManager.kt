@@ -8,6 +8,7 @@ import java.sql.SQLException
 
 
 val kkutuGames = mutableListOf<KkutuGameData>()
+val kkutuQueues = mutableListOf<KkutuQueueData>()
 
 lateinit var kkutuDb: Connection
 
@@ -18,7 +19,8 @@ data class KkutuGameData(
     val startWord: String,
     /** 0 indexed */
     val round: Int = 1,
-    val currentTurn: Player = players[0]
+    val currentTurn: Player = players.random(),
+    val settings: KkutuSettings
 ) {
     init {
         require(players.size >= 2) { "Minimum two players required!" }
@@ -26,11 +28,28 @@ data class KkutuGameData(
 }
 
 data class KkutuQueueData(
+    val queueId: Int = kkutuQueues.size,
     val host: Player,
     /** including host */
     val players: MutableList<Player> = mutableListOf(host),
-
+    val settings: KkutuSettings = KkutuSettings()
 )
+
+data class KkutuSettings(
+    var injeong: Boolean = true,
+    var gameType: KkutuGameType = KkutuGameType.KO,
+    var mannerType: KkutuMannerType = KkutuMannerType.ONE,
+    var roundTime: Int = 90,
+    var roundCount: Int = 5,
+    )
+
+enum class KkutuMannerType(val count: Int) {
+    NONE(0), ONE(1), FIVE(5), TEN(10)
+}
+
+enum class KkutuGameType {
+    KO, // KO_3WORD, KO_REVERSE, KO_WORD todo
+}
 
 object KkutuDbManager {
     @Throws(SQLException::class)
@@ -45,19 +64,41 @@ object KkutuDbManager {
 }
 
 private val RANDOM_WORD_QUERY by lazy {
-    kkutuDb.prepareStatement("SELECT id FROM 테이블명 ORDER BY RANDOM() LIMIT 1;")
+    kkutuDb.prepareStatement("SELECT id FROM ko ORDER BY RANDOM() LIMIT 1;")
 }
 
-fun startKkutu(players: List<Player>): KkutuGameData {
-    require(players.size >= 2) { "Minimum two players required!" }
+object KkutuGameManager {
+    fun start(queue: KkutuQueueData): KkutuGameData {
+        require(queue.players.size >= 2) { "Minimum two players required!" }
 
-    val startWord: String = RANDOM_WORD_QUERY.executeQuery().use { rs ->
-        rs.next() // ko table must have id
-        rs.getString("id")
+        val startWord: String = RANDOM_WORD_QUERY.executeQuery().use { rs ->
+            rs.next() // ko table must have id
+            rs.getString("id")
+        }
+
+        val data = KkutuGameData(
+            players = queue.players,
+            startWord = startWord,
+            settings = queue.settings
+        )
+        kkutuGames += data
+
+        return data
     }
 
-    return KkutuGameData(
-        players = players,
-        startWord = startWord
-    )
+    fun makeQueue(host: Player): KkutuQueueData {
+        val data = KkutuQueueData(host = host)
+        kkutuQueues += data
+        return data
+    }
+
+    fun findQueue(member: Player): KkutuQueueData? =
+        kkutuQueues.find {
+            it.players.contains(member)
+        }
+
+    fun getQueue(id: Int): KkutuQueueData? =
+        kkutuQueues.find {
+            it.queueId == id
+        }
 }

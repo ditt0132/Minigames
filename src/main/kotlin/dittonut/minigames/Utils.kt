@@ -1,3 +1,5 @@
 package dittonut.minigames
 
-fun String.parseMM() = mm.deserialize(this)
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
+
+fun String.parseMM(vararg resolvers: TagResolver) = mm.deserialize(this, *resolvers)
