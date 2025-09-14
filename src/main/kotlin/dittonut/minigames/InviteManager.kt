@@ -37,8 +37,8 @@ object InviteManager {
                 .parseMM(Placeholder.component("target", it.key.target.displayName())))
         }
         expired.forEach {
-            it.key.sender.sendMessage("<green>[${it.key.gameName}</green> invite from <sender> has been expired!"
-                .parseMM(Placeholder.component("target", it.key.sender.displayName())))
+            it.key.target.sendMessage("<green>[${it.key.gameName}</green> invite from <sender> has been expired!"
+                .parseMM(Placeholder.component("sender", it.key.sender.displayName())))
         }
         expired.forEach { invites.remove(it.key) }
     }

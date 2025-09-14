@@ -1,11 +1,9 @@
 package dittonut.minigames
 
-import dittonut.minigames.kkutu.KkutuGameData
 import dittonut.minigames.kkutu.KkutuGameManager
 import dittonut.minigames.kkutu.KkutuGameType
 import dittonut.minigames.kkutu.KkutuMannerType
 import dittonut.minigames.kkutu.KkutuQueueData
-import dittonut.minigames.kkutu.KkutuSettings
 import io.papermc.paper.command.brigadier.CommandSourceStack
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import org.bukkit.entity.Player
@@ -15,6 +13,7 @@ import org.incendo.cloud.context.CommandContext
 import org.incendo.cloud.kotlin.extension.buildAndRegister
 import org.incendo.cloud.parser.standard.BooleanParser
 import org.incendo.cloud.parser.standard.EnumParser
+import org.incendo.cloud.parser.standard.IntegerParser
 import org.incendo.cloud.parser.standard.StringParser
 import java.time.Instant
 
@@ -63,18 +62,18 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
                 InviteInfo("Kkutu", player, target, queue.queueId),
                 Instant.now().plusSeconds(config.inviteExpire))
 
-            ctx.sender().sender.sendMessage("<green>[Kkutu]</green> Sent an invite to <displayName>!".parseMM(
-                Placeholder.component("displayName", target.displayName())
+            ctx.sender().sender.sendMessage("<green>[Kkutu]</green> Sent an invite to <display_name>!".parseMM(
+                Placeholder.component("display_name", target.displayName())
             ))
-            target.sendMessage("<green>[Kkutu]</green> Incoming invite from <displayName>, queue #${queue.queueId}!".parseMM(
-                Placeholder.component("displayName", player.displayName())
+            target.sendMessage("<green>[Kkutu]</green> Incoming invite from <display_name>, queue #${queue.queueId}!".parseMM(
+                Placeholder.component("display_name", player.displayName())
             ))
         }
     }
 
     manager.buildAndRegister("kkutu") { // kkutu invite_accept <id>
         literal("invite_accept")
-        required("id", StringParser.stringParser())
+        required("id", StringParser.greedyStringParser())
         handler { ctx ->
             val player = validatePlayer(ctx) ?: return@handler
             if (KkutuGameManager.findQueue(player) != null) {
@@ -87,51 +86,83 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
                 return@handler
             }
 
+            if (player != invite.target) {
+                ctx.sender().sender.sendMessage("<red>[Kkutu]</red> Cannot accept other's invite!".parseMM())
+                return@handler
+            }
+
             InviteManager.invites.remove(invite)
             queue.players += player
 
-            ctx.sender().sender.sendMessage("<green>[Kkutu]</green> accepted invite from <displayName>!".parseMM(
-                Placeholder.component("displayName", invite.sender.displayName())
+            ctx.sender().sender.sendMessage("<green>[Kkutu]</green> accepted invite from <display_name>!".parseMM(
+                Placeholder.component("display_name", invite.sender.displayName())
             ))
-            invite.sender.sendMessage("<green>[Kkutu]</green> <displayName> accepted your invite!".parseMM(
-                Placeholder.component("displayName", player.displayName())
+            invite.sender.sendMessage("<green>[Kkutu]</green> <display_name> accepted your invite!".parseMM(
+                Placeholder.component("display_name", player.displayName())
             ))
         }
     }
 
     manager.buildAndRegister("kkutu") { // kkutu invite_deny <id>
         literal("invite_deny")
-        required("id", StringParser.stringParser())
+        required("id", StringParser.greedyStringParser())
         handler { ctx ->
             val player = validatePlayer(ctx) ?: return@handler
             val invite = validateInvite(ctx) ?: return@handler
 
             InviteManager.invites.remove(invite)
 
-            ctx.sender().sender.sendMessage("<green>[Kkutu]</green> denied invite from <displayName>!".parseMM(
-                Placeholder.component("displayName", invite.sender.displayName())
+            ctx.sender().sender.sendMessage("<green>[Kkutu]</green> denied invite from <display_name>!".parseMM(
+                Placeholder.component("display_name", invite.sender.displayName())
             ))
-            invite.sender.sendMessage("<green>[Kkutu]</green> <displayName> denied your invite!".parseMM(
-                Placeholder.component("displayName", player.displayName())
+            invite.sender.sendMessage("<green>[Kkutu]</green> <display_name> denied your invite!".parseMM(
+                Placeholder.component("display_name", player.displayName())
             ))
         }
     }
 
     manager.buildAndRegister("kkutu") { // kkutu invite_cancel <id>
         literal("invite_cancel")
-        required("id", StringParser.stringParser())
+        required("id", StringParser.greedyStringParser())
         handler { ctx ->
             val player = validatePlayer(ctx) ?: return@handler
             val invite = validateInvite(ctx) ?: return@handler
 
             InviteManager.invites.remove(invite)
 
-            ctx.sender().sender.sendMessage("<green>[Kkutu]</green> canceled invite to <displayName>!".parseMM(
-                Placeholder.component("displayName", invite.target.displayName())
+            ctx.sender().sender.sendMessage("<green>[Kkutu]</green> canceled invite to <display_name>!".parseMM(
+                Placeholder.component("display_name", invite.target.displayName())
             ))
-            invite.target.sendMessage("<green>[Kkutu]</green> <displayName> canceled invite!".parseMM(
-                Placeholder.component("displayName", player.displayName())
+            invite.target.sendMessage("<green>[Kkutu]</green> <display_name> canceled invite!".parseMM(
+                Placeholder.component("display_name", player.displayName())
             ))
+        }
+    }
+
+    manager.buildAndRegister("kkutu") { // kkutu list
+        literal("list")
+        handler { ctx ->
+            validatePlayer(ctx) ?: return@handler
+            validateQueue(ctx) ?: return@handler
+
+            ctx.sender().sender.sendMessage("<green>[Kkutu]</green> Players:".parseMM())
+        }
+    }
+
+    manager.buildAndRegister("kkutu") { // kkutu list
+        literal("info")
+        handler { ctx ->
+            validatePlayer(ctx) ?: return@handler
+            val queue = validateQueue(ctx) ?: return@handler
+
+            ctx.sender().sender.sendMessage((
+                    "<green>[Kkutu]</green> Settings:\n" +
+                    "  <light_gray>어인정(injeong)</light_gray>: <green>${queue.settings.injeong}</green>\n" +
+                    "  <light_gray>게임 모드(gameType)</light_gray>: <green>${queue.settings.gameType.displayName}</green>\n" +
+                    "  <light_graay>매너 모드(mannerType)</light_gray>: <green>${queue.settings.mannerType.displayName}</green>\n" +
+                    "  <light_gray>라운드 시간(roundTime)</light_gray>: <green>${queue.settings.roundTime}초</green>\n" +
+                    "  <light_gray>라운드 수(roundCount)</light_gray>: <green>${queue.settings.roundCount}</green>\n"
+            ).parseMM())
         }
     }
 
@@ -139,7 +170,7 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
         literal("kick")
         required("name", PlayerParser.playerParser())
         handler { ctx ->
-            val player = validatePlayer(ctx) ?: return@handler
+            validatePlayer(ctx) ?: return@handler
             val queue = validateQueue(ctx) ?: return@handler
             val target = ctx.get<Player>("name")
 
@@ -148,11 +179,11 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
             // else
             queue.players.remove(target)
 
-            ctx.sender().sender.sendMessage("<green>[Kkutu]</green> Kicked <displayName> from queue!".parseMM(
-                Placeholder.component("displayName", target.displayName())
+            ctx.sender().sender.sendMessage("<green>[Kkutu]</green> Kicked <display_name> from queue!".parseMM(
+                Placeholder.component("display_name", target.displayName())
             ))
             target.sendMessage("<green>[Kkutu]</green> Kicked from queue #${queue.queueId}!".parseMM(
-                Placeholder.component("displayName", target.displayName())
+                Placeholder.component("display_name", target.displayName())
             ))
         }
     }
@@ -162,10 +193,11 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
         literal("injeong")
         required("value", BooleanParser.booleanParser())
         handler { ctx ->
-            val player = validatePlayer(ctx) ?: return@handler
+            validatePlayer(ctx) ?: return@handler
             val queue = validateQueue(ctx) ?: return@handler
 
-            if (!validateHost(ctx, queue, "<red>[Kkutu]</red> Must be host to change settings!")) return@handler
+            if (!validateHost(ctx, queue,
+                    "<red>[Kkutu]</red> Must be host to change settings!")) return@handler
 
             val prev = queue.settings.injeong
             val new = ctx.get<Boolean>("value")
@@ -183,18 +215,18 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
         literal("gameType")
         required("value", EnumParser.enumParser(KkutuGameType::class.java))
         handler { ctx ->
-            val player = validatePlayer(ctx) ?: return@handler
+            validatePlayer(ctx) ?: return@handler
             val queue = validateQueue(ctx) ?: return@handler
 
             if (!validateHost(ctx, queue, "<red>[Kkutu]</red> Must be host to change settings!")) return@handler
 
-            val prev = queue.settings.injeong
-            val new = ctx.get<Boolean>("value")
+            val prev = queue.settings.gameType
+            val new = ctx.get<KkutuGameType>("value")
 
-            queue.settings.injeong = new
+            queue.settings.gameType = new
 
             queue.players.forEach {
-                it.sendMessage("<green>[Kkutu]</green> Setting changed: <green>injeong</green>: $prev to $new!".parseMM())
+                it.sendMessage("<green>[Kkutu]</green> Setting changed: <green>gameType</green>: $prev to $new!".parseMM())
             }
         }
     }
@@ -204,18 +236,60 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
         literal("mannerType")
         required("value", EnumParser.enumParser(KkutuMannerType::class.java))
         handler { ctx ->
+            validatePlayer(ctx) ?: return@handler
+            val queue = validateQueue(ctx) ?: return@handler
+
+            if (!validateHost(ctx, queue, "<red>[Kkutu]</red> Must be host to change settings!")) return@handler
+
+            val prev = queue.settings.mannerType
+            val new = ctx.get<KkutuMannerType>("value")
+
+            queue.settings.mannerType = new
+
+            queue.players.forEach {
+                it.sendMessage("<green>[Kkutu]</green> Setting changed: <green>mannerType</green>: $prev to $new!".parseMM())
+            }
+        }
+    }
+
+    manager.buildAndRegister("kkutu") { // kkutu set roundTime <value>
+        literal("set")
+        literal("roundTime")
+        required("value", IntegerParser.integerParser(10, 150))
+        handler { ctx ->
+            validatePlayer(ctx) ?: return@handler
+            val queue = validateQueue(ctx) ?: return@handler
+
+            if (!validateHost(ctx, queue, "<red>[Kkutu]</red> Must be host to change settings!")) return@handler
+
+            val prev = queue.settings.roundTime
+            val new = ctx.get<Int>("value")
+
+            queue.settings.roundTime = new
+
+            queue.players.forEach {
+                it.sendMessage("<green>[Kkutu]</green> Setting changed: <green>roundTime</green>: $prev to $new!".parseMM())
+            }
+        }
+    }
+
+    manager.buildAndRegister("kkutu") { // kkutu set roundCount <value>
+        literal("set")
+        literal("roundCount")
+        required("value", IntegerParser.integerParser(1, 10))
+        handler { ctx ->
             val player = validatePlayer(ctx) ?: return@handler
             val queue = validateQueue(ctx) ?: return@handler
 
             if (!validateHost(ctx, queue, "<red>[Kkutu]</red> Must be host to change settings!")) return@handler
 
-            val prev = queue.settings.injeong
-            val new = ctx.get<Boolean>("value")
+            val prev = queue.settings.roundCount
+            val new = ctx.get<Int>("value")
 
-            queue.settings.injeong = new
+            queue.settings.roundCount = new
 
             queue.players.forEach {
-                it.sendMessage("<green>[Kkutu]</green> Setting changed: <green>injeong</green>: $prev to $new!".parseMM())
+                it.sendMessage("<green>[Kkutu]</green> Setting changed: <green>roundCount</green>: $prev to $new!".parseMM())
             }
         }
     }
@@ -233,14 +307,11 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
                 ctx.sender().sender.sendMessage("<red>[Kkutu]</red> Must have two or more players in queue to start!".parseMM())
             }
 
-            KkutuGameManager.start(queue)
+            KkutuGameManager.startGame(queue)
 
-            ctx.sender().sender.sendMessage("<green>[Kkutu]</green> Sent an invite to <displayName>!".parseMM(
-                Placeholder.component("displayName", target.displayName())
-            ))
-            target.sendMessage("<green>[Kkutu]</green> Incoming invite from <displayName>, queue #${queue.queueId}!".parseMM(
-                Placeholder.component("displayName", player.displayName())
-            ))
+            queue.players.forEach {
+                it.sendMessage("<green>[Kkutu]</green> Kkutu started!".parseMM())
+            }
         }
     }
 }

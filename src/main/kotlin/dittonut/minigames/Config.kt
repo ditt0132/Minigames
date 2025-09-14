@@ -11,7 +11,7 @@ lateinit var config: Config
 @Serializable
 data class Config(
     val version: Int = 1,
-    val kkutuDbUrl: String = "",
+    val kkutuDbUrl: String = "jdbc:sqlite:${File(plugin.dataFolder, "dict.db").absolutePath}",
     val inviteExpire: Long = 60
     )
 

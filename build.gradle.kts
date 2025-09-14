@@ -28,7 +28,6 @@ dependencies {
     implementation("org.incendo:cloud-paper:2.0.0-beta.10")
 
     implementation("org.xerial:sqlite-jdbc:3.50.3.0")
-
 }
 
 tasks {
