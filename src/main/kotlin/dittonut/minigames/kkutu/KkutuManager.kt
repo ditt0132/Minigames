@@ -1,9 +1,11 @@
 package dittonut.minigames.kkutu
 
 import dittonut.minigames.config
+import dittonut.minigames.parseMM
 import dittonut.minigames.playSound
 import dittonut.minigames.plugin
 import org.bukkit.Bukkit
+import org.bukkit.Sound
 import org.bukkit.entity.Player
 import java.io.File
 import java.sql.Connection
@@ -91,6 +93,11 @@ object KkutuGameManager {
         "11011111", // 7
         "11111111"  // 8
     )
+
+    private val WORD_CHECK_QUERY by lazy {
+        kkutuDb.prepareStatement("SELECT EXISTS(SELECT 1 FROM ko WHERE id = ?);")
+    }
+
     fun startGame(queue: KkutuQueueData): KkutuGameData {
         require(queue.players.size >= 2) { "Minimum two players required!" }
 
@@ -124,23 +131,71 @@ object KkutuGameManager {
     }
 
     fun submitWord(word: String, player: Player, data: KkutuGameData) {
-        TODO()
+        val lastWord = data.usedWords.last()
+        if (!word.startsWith(lastWord.first())) {
+            handleIncorrect(word, player, data, "Invalid word")
+            return
+        }
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
+            WORD_CHECK_QUERY.setString(1, word)
+            val rs = WORD_CHECK_QUERY.executeQuery()
+            rs.next()
+            val exists = rs.getBoolean(1)
+            Bukkit.getScheduler().runTask(plugin, Runnable {
+                if (!exists) {
+                    handleIncorrect(word, player, data, "Unknown word")
+                    return@Runnable
+                } else handleCorrect(word, player, data)
+            })
+        })
         // play incorrect when failed, else change data, play success sound, wait for it to process, continue to next tick
 
     }
 
-    fun playSuccessSound(word: String, data: KkutuGameData) {
+    fun handleIncorrect(word: String, player: Player, data: KkutuGameData, reason: String) {}
+
+    fun handleCorrect(word: String, player: Player, data: KkutuGameData) {
+        data.players.forEach {
+            it.sendMessage("<green>[Kkutu]</green> $word".parseMM()) }
+        data.usedWords += word
+
+        val index = data.players.indexOf(player)
+        data.currentTurn = data.players[(index + 1) % data.players.size]
+
+        // TODO run this after delay
+        data.currentTurn.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f)
+        startTurn(data)
+        return; // TODO
+
         val speed = calculateSpeed(data)
         val tick = data.roundData.turnTimeLeft / 96
         val sg = data.roundData.turnTimeLeft / 12
         val beat = BEAT.getOrNull(word.length)
         val taSound = beat ?: if (word.length < 10) "As$speed" else "Al"
         // use beat
-        TODO()
+        // TODO: wait for beat to play
+
+    }
+
+    fun startTurn(data: KkutuGameData) {
+        data.currentTurn.sendActionBar("<green>It's your turn!</green>".parseMM())
     }
 
     fun calculateSpeed(data: KkutuGameData): Int {
-        return TODO()
+        val rt = data.roundData.timeLeft
+        return when {
+            rt < 5000 -> 10
+            rt < 11000 -> 9
+            rt < 18000 -> 8
+            rt < 26000 -> 7
+            rt < 35000 -> 6
+            rt < 45000 -> 5
+            rt < 56000 -> 4
+            rt < 68000 -> 3
+            rt < 81000 -> 2
+            rt < 95000 -> 1
+            else -> 0
+        }
     }
 
     fun makeQueue(host: Player): KkutuQueueData {
