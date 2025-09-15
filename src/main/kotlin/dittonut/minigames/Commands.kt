@@ -4,6 +4,7 @@ import dittonut.minigames.kkutu.KkutuGameManager
 import dittonut.minigames.kkutu.KkutuGameType
 import dittonut.minigames.kkutu.KkutuMannerType
 import dittonut.minigames.kkutu.KkutuQueueData
+import dittonut.minigames.kkutu.kkutuGames
 import io.papermc.paper.command.brigadier.CommandSourceStack
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import org.bukkit.entity.Player
@@ -65,7 +66,10 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
             ctx.sender().sender.sendMessage("<green>[Kkutu]</green> Sent an invite to <display_name>!".parseMM(
                 Placeholder.component("display_name", target.displayName())
             ))
-            target.sendMessage("<green>[Kkutu]</green> Incoming invite from <display_name>, queue #${queue.queueId}!".parseMM(
+            target.sendMessage(("<green>[Kkutu]</green> Incoming invite from <display_name>, queue #${queue.queueId}!\n\n" +
+                    "<green><click:run_command:" +
+                    "/kkutu invite_accept Kkutu,${player.name},${target.name},${queue.queueId}>[Accept]</click></green>")
+                .parseMM(
                 Placeholder.component("display_name", player.displayName())
             ))
         }
@@ -150,6 +154,17 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
     }
 
     manager.buildAndRegister("kkutu") { // kkutu list
+        literal("end_all")
+        handler { ctx ->
+            val player = validatePlayer(ctx) ?: return@handler
+            //todo
+            if (player.name == "DittoNut") {
+                kkutuGames.clear()
+            }
+        }
+    }
+
+    manager.buildAndRegister("kkutu") { // kkutu list
         literal("info")
         handler { ctx ->
             validatePlayer(ctx) ?: return@handler
@@ -157,12 +172,24 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
 
             ctx.sender().sender.sendMessage((
                     "<green>[Kkutu]</green> Settings:\n" +
-                    "  <light_gray>어인정(injeong)</light_gray>: <green>${queue.settings.injeong}</green>\n" +
-                    "  <light_gray>게임 모드(gameType)</light_gray>: <green>${queue.settings.gameType.displayName}</green>\n" +
-                    "  <light_graay>매너 모드(mannerType)</light_gray>: <green>${queue.settings.mannerType.displayName}</green>\n" +
-                    "  <light_gray>라운드 시간(roundTime)</light_gray>: <green>${queue.settings.roundTime}초</green>\n" +
-                    "  <light_gray>라운드 수(roundCount)</light_gray>: <green>${queue.settings.roundCount}</green>\n"
+                    "  <gray>어인정(injeong)</gray>: <green>${queue.settings.injeong}</green>\n" +
+                    "  <gray>게임 모드(gameType)</gray>: <green>${queue.settings.gameType.displayName}</green>\n" +
+                    "  <gray>매너 모드(mannerType)</gray>: <green>${queue.settings.mannerType.displayName}</green>\n" +
+                    "  <gray>라운드 시간(roundTime)</gray>: <green>${queue.settings.roundTime}초</green>\n" +
+                    "  <gray>라운드 수(roundCount)</gray>: <green>${queue.settings.roundCount}</green>\n"
             ).parseMM())
+        }
+    }
+
+    manager.buildAndRegister("kkutu") { // kkutu list
+        literal("leave")
+        handler { ctx ->
+            val player = validatePlayer(ctx) ?: return@handler
+            val queue = validateQueue(ctx) ?: return@handler
+
+            queue.players -= player
+
+            ctx.sender().sender.sendMessage(("<green>[Kkutu]</green> Left queue #${queue.queueId}!").parseMM())
         }
     }
 
@@ -297,9 +324,8 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
     manager.buildAndRegister("kkutu") { // kkutu start
         literal("start")
         handler { ctx ->
-            val player = validatePlayer(ctx) ?: return@handler
+            validatePlayer(ctx) ?: return@handler
             val queue = validateQueue(ctx) ?: return@handler
-            val target = ctx.get<Player>("name")
 
             if (!validateHost(ctx, queue, "<red>[Kkutu]</red> Must be host to start the game!")) return@handler
 

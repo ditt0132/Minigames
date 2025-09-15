@@ -7,5 +7,5 @@ val sounds = mapOf<String, String>(
 )
 
 fun playSound(id: String, to: Player) {
-    TODO()
+    to.sendMessage("와 방금 당신은 $id 소리를 들으셨어요!!!!")
 }

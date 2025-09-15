@@ -116,6 +116,10 @@ object KkutuGameManager {
         kkutuQueues -= queue
 
         data.players.forEach { playSound("kkutuGameStart", it) }
+        data.players.forEach {
+            it.sendMessage("<green>[Kkutu]</green> -> ${data.currentTurn.name}".parseMM()) }
+        data.players.forEach {
+            it.sendMessage("<green>[Kkutu]</green> $startWord".parseMM()) }
         Bukkit.getScheduler().runTaskLater(plugin, Runnable {
             // TODO: actually start round
             startRound(data)
@@ -126,33 +130,45 @@ object KkutuGameManager {
 
     fun startRound(data: KkutuGameData) {
         data.players.forEach { playSound("kkutuRoundStart", it) }
-
-        TODO()
+        data.roundData.timeLeft = data.settings.roundTime
     }
 
     fun submitWord(word: String, player: Player, data: KkutuGameData) {
         val lastWord = data.usedWords.last()
-        if (!word.startsWith(lastWord.first())) {
+        println(lastWord)
+        println("recv at submitWord")
+        if (!word.startsWith(lastWord.last())) {
             handleIncorrect(word, player, data, "Invalid word")
             return
         }
+        if (word.length == 1) {
+            handleIncorrect(word, player, data, "Too short!")
+            return
+        }
+        println("valid")
         Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
+            println("checking $word")
             WORD_CHECK_QUERY.setString(1, word)
             val rs = WORD_CHECK_QUERY.executeQuery()
             rs.next()
             val exists = rs.getBoolean(1)
             Bukkit.getScheduler().runTask(plugin, Runnable {
                 if (!exists) {
+                    println("notexists")
                     handleIncorrect(word, player, data, "Unknown word")
                     return@Runnable
-                } else handleCorrect(word, player, data)
+                }
+                println("exsists")
+                handleCorrect(word, player, data)
             })
         })
         // play incorrect when failed, else change data, play success sound, wait for it to process, continue to next tick
 
     }
 
-    fun handleIncorrect(word: String, player: Player, data: KkutuGameData, reason: String) {}
+    fun handleIncorrect(word: String, player: Player, data: KkutuGameData, reason: String) {
+        player.sendMessage("<green>[Kkutu]</green> Word not allowed: $reason".parseMM())
+    }
 
     fun handleCorrect(word: String, player: Player, data: KkutuGameData) {
         data.players.forEach {
@@ -177,8 +193,13 @@ object KkutuGameManager {
 
     }
 
+    /**
+     * passing turn to other players is not implemented here!
+     * @see handleCorrect
+     */
     fun startTurn(data: KkutuGameData) {
         data.currentTurn.sendActionBar("<green>It's your turn!</green>".parseMM())
+        data.roundData.turnTimeLeft = 10
     }
 
     fun calculateSpeed(data: KkutuGameData): Int {
@@ -212,5 +233,10 @@ object KkutuGameManager {
     fun getQueue(id: Int): KkutuQueueData? =
         kkutuQueues.find {
             it.queueId == id
+        }
+
+    fun findGame(member: Player): KkutuGameData? =
+        kkutuGames.find {
+            it.players.contains(member)
         }
 }
