@@ -340,6 +340,19 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
             }
         }
     }
+
+    manager.buildAndRegister("soundplayer") { // kkutu start
+        required("name", StringParser.greedyStringParser())
+        handler { ctx ->
+            val player = validatePlayer(ctx) ?: return@handler
+
+            if (ctx.get<String>("name") == "reload") {
+                SoundManager.load()
+            }
+
+            SoundManager.playSound(ctx.get("name"), player)
+        }
+    }
 }
 
 

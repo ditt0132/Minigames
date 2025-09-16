@@ -15,6 +15,7 @@ repositories {
     maven("https://repo.papermc.io/repository/maven-public/") {
         name = "papermc-repo"
     }
+    maven("https://jitpack.io")
 }
 
 dependencies {
@@ -28,6 +29,8 @@ dependencies {
     implementation("org.incendo:cloud-paper:2.0.0-beta.10")
 
     implementation("org.xerial:sqlite-jdbc:3.50.3.0")
+
+    implementation("com.github.koca2000:NBS4j:1.3.0")
 }
 
 tasks {

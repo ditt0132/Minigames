@@ -2,7 +2,7 @@ package dittonut.minigames.kkutu
 
 import dittonut.minigames.config
 import dittonut.minigames.parseMM
-import dittonut.minigames.playSound
+import dittonut.minigames.SoundManager
 import dittonut.minigames.plugin
 import org.bukkit.Bukkit
 import org.bukkit.Sound
@@ -115,7 +115,7 @@ object KkutuGameManager {
 
         kkutuQueues -= queue
 
-        data.players.forEach { playSound("kkutuGameStart", it) }
+        data.players.forEach { SoundManager.playSound("kkutuGameStart", it) }
         data.players.forEach {
             it.sendMessage("<green>[Kkutu]</green> -> ${data.currentTurn.name}".parseMM()) }
         data.players.forEach {
@@ -129,7 +129,7 @@ object KkutuGameManager {
     }
 
     fun startRound(data: KkutuGameData) {
-        data.players.forEach { playSound("kkutuRoundStart", it) }
+        data.players.forEach { SoundManager.playSound("kkutuRoundStart", it) }
         data.roundData.timeLeft = data.settings.roundTime
     }
 

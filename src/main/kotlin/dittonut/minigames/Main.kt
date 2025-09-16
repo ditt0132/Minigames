@@ -1,7 +1,6 @@
 package dittonut.minigames
 
 import dittonut.minigames.kkutu.KkutuDbManager
-import dittonut.minigames.kkutu.KkutuGameData
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.plugin.java.JavaPlugin
 import org.incendo.cloud.execution.ExecutionCoordinator
@@ -27,6 +26,9 @@ class Main : JavaPlugin() {
         server.scheduler.runTaskTimer(this, Runnable {
             ConfigManager.save()
         }, 0L, 600L) // 600t = 30s
+
+        // Sound manager
+        SoundManager.load()
 
         val commandManager = PaperCommandManager.builder()
             .executionCoordinator(ExecutionCoordinator.simpleCoordinator())

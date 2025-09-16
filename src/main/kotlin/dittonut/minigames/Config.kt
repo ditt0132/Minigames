@@ -12,7 +12,8 @@ lateinit var config: Config
 data class Config(
     val version: Int = 1,
     val kkutuDbUrl: String = "jdbc:sqlite:${File(plugin.dataFolder, "dict.db").absolutePath}",
-    val inviteExpire: Long = 60
+    val inviteExpire: Long = 60,
+    val songsDir: String = "songs"
     )
 
 object ConfigManager {
