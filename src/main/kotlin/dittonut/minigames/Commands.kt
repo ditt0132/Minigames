@@ -175,7 +175,8 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
                     "  <gray>어인정(injeong)</gray>: <green>${queue.settings.injeong}</green>\n" +
                     "  <gray>게임 모드(gameType)</gray>: <green>${queue.settings.gameType.displayName}</green>\n" +
                     "  <gray>매너 모드(mannerType)</gray>: <green>${queue.settings.mannerType.displayName}</green>\n" +
-                    "  <gray>라운드 시간(roundTime)</gray>: <green>${queue.settings.roundTime}초</green>\n" +
+                    "  <gray>라운드 시간(roundTime)</gray>: <green>${queue.settings.roundTime} 밀리초</green>\n" +
+                            // todo: maybe put conversion in this, and set?
                     "  <gray>라운드 수(roundCount)</gray>: <green>${queue.settings.roundCount}</green>\n"
             ).parseMM())
         }
@@ -345,12 +346,15 @@ fun registerCommands(manager: CommandManager<CommandSourceStack>) {
         required("name", StringParser.greedyStringParser())
         handler { ctx ->
             val player = validatePlayer(ctx) ?: return@handler
+            val name = ctx.get<String>("name")
 
-            if (ctx.get<String>("name") == "reload") {
+            if (name == "reload") {
                 SoundManager.load()
+            } else if (name.startsWith("stop")) {
+                val arguments = name.split("/")
+                SoundManager.stopSound(player, arguments.getOrNull(1)?.takeIf { it.isNotEmpty() })
             }
-
-            SoundManager.playSound(ctx.get("name"), player)
+            else SoundManager.playSound(name, player)
         }
     }
 }

@@ -5,13 +5,13 @@ import org.bukkit.Sound
 import org.bukkit.SoundCategory
 import org.bukkit.entity.Player
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import kotlin.math.pow
 
-var sounds = mapOf<String, String>(
-    Pair("test", "test")
-)
+
 lateinit var songs: Map<String, Song>
     private set
 
@@ -19,69 +19,88 @@ private val songsDir: File by lazy {
     File(plugin.dataFolder, config.songsDir) //TODO: auto copy
 }
 
+data class SongPlayback(
+    val id: String,
+    val song: Song,
+    var currentTick: Long
+)
+
 object SoundManager {
-    fun playSound(id: String, to: Player) {
-        to.sendMessage("와 방금 당신은 $id 소리를 들으셨어요!!!!")
+    val executor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+
+    private val activeSongs = mutableMapOf<Player, MutableList<SongPlayback>>()
+
+    fun stopSound(player: Player, id: String? = null) {
+        executor.execute {
+            if (id == null) activeSongs.remove(player)
+            else activeSongs[player]?.removeIf { it.id == id }
+        }
+    }
+
+    fun playSound(id: String, to: List<Player>, endCallback: () -> Unit = {}) {
         val song = songs[id]
         song ?: return
 
-        val executor = Executors.newSingleThreadScheduledExecutor()
-        var currentTick = 0L // todo: maybe try -1?
-        val tempo = song.getTempo(0) // float, ticks per second
+        val playback = SongPlayback(id, song, -1L)
 
         fun scheduleNextTick() {
-            val nextTick = song.getNextNonEmptyTick(currentTick.toInt())
+            val nextTick = song.getNextNonEmptyTick(playback.currentTick.toInt())
             if (nextTick < 0) {
-                executor.shutdown()
+                to.forEach { activeSongs[it]?.remove(playback) }
+                endCallback()
                 return
             }
 
-            val delayMs = ((nextTick - currentTick) * 1000f / tempo).toLong()
-
-            // todo: what happened to first note?
+            val delayMs = ((nextTick - playback.currentTick) * 1000f
+                    / song.getTempo(playback.currentTick.toInt())).toLong()
 
             executor.schedule({
-                song.layers.forEach { layer ->
-                    val note = layer.notes[nextTick]
-                    if (note == null) {
-                        //println("empty")
-                        return@forEach
-                    }
-                    val key = note.key
-                    val volume = note.volume
-                    val instrument = note.instrument
+                val activePlayers = to.filter { activeSongs[it]?.contains(playback) == true }
 
-                    val pitch = toPitch(key)?.toFloat()
-
-                    if (pitch == null) {
-                        println("outoF")
-                        return@forEach
-                    }
-
-                    to.playSound(to, Sound.BLOCK_NOTE_BLOCK_HARP,
-                        SoundCategory.MASTER,
-                        volume / 100f,
-                         pitch,
-                        0L)
-
-                    println("Tick $nextTick - Key: $key, Volume: $volume, Instrument: $instrument")
+                if (activePlayers.isEmpty()) {
+                    endCallback()
+                    return@schedule
                 }
 
-                currentTick = nextTick.toLong() //+ 1L
+                activePlayers.forEach { player ->
+                    song.layers.forEach { layer ->
+                        val note = layer.notes[nextTick] ?: return@forEach
+
+                        player.playSound(
+                            player,
+                            toSound(note.instrument),
+                            SoundCategory.MASTER,
+                            note.volume / 100f,
+                            toPitch(note.key)?.toFloat() ?: return@forEach,
+                            0L
+                        )
+                    }
+                }
+
+
+                playback.currentTick = nextTick.toLong()
                 scheduleNextTick()
             }, delayMs, TimeUnit.MILLISECONDS)
         }
 
-        scheduleNextTick()
+        executor.execute {
+            to.forEach { it ->
+                activeSongs.computeIfAbsent(it) { mutableListOf() }.add(playback)
+            }
+            scheduleNextTick()
+        }
     }
+
+    fun playSound(id: String, to: Player, endCallback: () -> Unit = {}) = playSound(id, listOf(to), endCallback)
 
     fun load() {
         val loaded = mutableMapOf<String, Song>()
 
-        sounds.forEach {
-            val song = Song.fromFile(File(songsDir, "${it.key}.nbs"))
+        songsDir.listFiles { _, name -> name.endsWith(".nbs") }.forEach {
+            val song = Song.fromFile(it)
                 .freezeSong()
-            loaded.put(it.key, song)
+            loaded.put(it.name.removeSuffix(".nbs"), song)
+            println("loading ${it.name} complete!")
         }
 
         songs = loaded.toMap()
@@ -94,8 +113,31 @@ private fun toPitch(key: Int): Double? {
     val useCount = key - fsharp3Index
     val pitch = 2.0.pow((useCount - 12) / 12.0)
     if (useCount < 0 || useCount > 24) {
-        println("마크 범위 벗어남: key=$key (useCount=$useCount) -> pitch=$pitch")
+        //println("마크 범위 벗어남: key=$key (useCount=$useCount) -> pitch=$pitch")
         return null
     }
     return pitch
+}
+
+private fun toSound(instrument: Int): Sound {
+    require(instrument in 0..15)
+    return when (instrument) {
+        0 -> Sound.BLOCK_NOTE_BLOCK_HARP
+        1 -> Sound.BLOCK_NOTE_BLOCK_BASS
+        2 -> Sound.BLOCK_NOTE_BLOCK_BASEDRUM
+        3 -> Sound.BLOCK_NOTE_BLOCK_SNARE
+        4 -> Sound.BLOCK_NOTE_BLOCK_HAT
+        5 -> Sound.BLOCK_NOTE_BLOCK_GUITAR
+        6 -> Sound.BLOCK_NOTE_BLOCK_FLUTE
+        7 -> Sound.BLOCK_NOTE_BLOCK_BELL
+        8 -> Sound.BLOCK_NOTE_BLOCK_CHIME
+        9 -> Sound.BLOCK_NOTE_BLOCK_XYLOPHONE
+        10 -> Sound.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE
+        11 -> Sound.BLOCK_NOTE_BLOCK_COW_BELL
+        12 -> Sound.BLOCK_NOTE_BLOCK_DIDGERIDOO
+        13 -> Sound.BLOCK_NOTE_BLOCK_BIT
+        14 -> Sound.BLOCK_NOTE_BLOCK_BANJO
+        15 -> Sound.BLOCK_NOTE_BLOCK_PLING
+        else -> error("unreachable")
+    }
 }

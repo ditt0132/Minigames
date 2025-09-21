@@ -1,6 +1,7 @@
 package dittonut.minigames
 
 import dittonut.minigames.kkutu.KkutuDbManager
+import dittonut.minigames.kkutu.KkutuGameManager
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.plugin.java.JavaPlugin
 import org.incendo.cloud.execution.ExecutionCoordinator
@@ -44,6 +45,8 @@ class Main : JavaPlugin() {
 
         // Invite expire logic
         server.scheduler.runTaskTimer(this, InviteManager::tick, 0L, 20L) // 20t = 1s
+
+        logger.info("Minigames enabled successfully!")
     }
 
     override fun onDisable() {
@@ -51,5 +54,9 @@ class Main : JavaPlugin() {
         ConfigManager.save()
 
         KkutuDbManager.close()
+
+        // shutdown executors
+        KkutuGameManager.executor.shutdown()
+        SoundManager.executor.shutdown()
     }
 }

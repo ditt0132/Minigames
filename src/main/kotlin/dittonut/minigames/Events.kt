@@ -8,6 +8,7 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerChatEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerQuitEvent
 
 class Events : Listener {
     @EventHandler
@@ -37,5 +38,11 @@ class Events : Listener {
             KkutuGameManager.submitWord(stripped, event.player, data)
         }
         // else keep default, just chat
+    }
+
+    fun onQuit(event: PlayerQuitEvent) {
+        SoundManager.executor.execute {
+            SoundManager.stopSound(event.player)
+        }
     }
 }
